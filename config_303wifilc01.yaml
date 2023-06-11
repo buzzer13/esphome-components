@@ -1,0 +1,67 @@
+esphome:
+  platform: ESP8266
+  board: esp01_1m
+  on_boot:
+    then:
+      - lambda: |-
+          id(tm_ds1302).read_time();
+
+external_components:
+  - source: github://trombik/esphome-component-ds1302@main
+    components:
+      - ds1302
+  - source: github://buzzer13/esphome-components@main
+    components:
+      - tm1650
+
+time:
+  - platform: ds1302
+    id: tm_ds1302
+    cs_pin: GPIO5
+    dio_pin: GPIO14
+    clk_pin: GPIO16
+    update_interval: never
+
+  - platform: homeassistant
+    id: tm_hass
+    on_time_sync:
+      then:
+        - lambda: id(tm_ds1302).write_time();
+
+status_led:
+  pin:
+    number: GPIO2
+    inverted: true
+
+i2c:
+  - id: i2c_main
+    sda: 13
+    scl: 12
+    scan: true
+
+display:
+  - platform: tm1650
+    id: disp_tm1650
+    intensity: 1
+    length: 4
+    segment_map: GBPEDCAF # Remapped due to the specific 303WIFILC01 wiring
+    update_interval: 500ms
+    lambda: |-
+      static int dot = 0;
+
+      if (++dot & 1) {
+        it.strftime("%H.%M", id(tm_ds1302).now());
+      } else {
+        it.strftime("%H%M", id(tm_ds1302).now());
+      }
+
+# Segment mapping:
+#      Font          Clock
+# P 0b10000000 -> 0b00000001 G
+# A 0b01000000 -> 0b00100000 B
+# B 0b00100000 -> 0b10000000 P
+# C 0b00010000 -> 0b00000100 E
+# D 0b00001000 -> 0b00001000 D
+# E 0b00000100 -> 0b00010000 C
+# F 0b00000010 -> 0b01000000 A
+# G 0b00000001 -> 0b00000010 F
