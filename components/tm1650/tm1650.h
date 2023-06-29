@@ -40,8 +40,8 @@ class TM1650Display : public PollingComponent, public i2c::I2CDevice {
   uint8_t print(uint8_t pos, const char *str);
   uint8_t print(const char *str);
 
-  uint8_t strftime(uint8_t pos, const char *format, time::ESPTime time) __attribute__((format(strftime, 3, 0)));
-  uint8_t strftime(const char *format, time::ESPTime time) __attribute__((format(strftime, 2, 0)));
+  uint8_t strftime(uint8_t pos, const char *format, ESPTime time) __attribute__((format(strftime, 3, 0)));
+  uint8_t strftime(const char *format, ESPTime time) __attribute__((format(strftime, 2, 0)));
 
  protected:
   uint8_t intensity_;
