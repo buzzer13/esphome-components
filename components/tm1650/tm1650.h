@@ -1,17 +1,8 @@
 #pragma once
 
 #include "esphome/core/component.h"
-// #include "esphome/core/defines.h"
-// #include "esphome/core/hal.h"
-#include "esphome/components/i2c/i2c.h"
-#include "esphome/components/time/real_time_clock.h"
 #include "esphome/core/time.h"
-
-// #include <vector>
-
-//#ifdef USE_BINARY_SENSOR
-//#include "esphome/components/binary_sensor/binary_sensor.h"
-//#endif
+#include "esphome/components/i2c/i2c.h"
 
 namespace esphome {
 namespace tm1650 {
