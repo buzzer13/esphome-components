@@ -61,4 +61,13 @@ display:
 
 #### Configuration for 303WIFILC01 clock
 
-Check out [`config_303wifilc01.yaml`](config_303wifilc01.yaml).
+There are two sample configurations for the clock in this repository:
+
+- [Minimal config](config_303wifilc01_minimal.yaml). Configures basic time sync, status led and display.
+- [Full config](config_303wifilc01_full.yaml). Includes everything from minimal config plus:
+  - Handles **Set/Up/Down** push buttons (mapped to the display brightness control by default).
+  - Automatically turns off display at night and startup from 12 AM till 8 AM.
+  - Displays multiple text strings pulled from Home Assistant API.
+  - Exposes following configuration switches to the Home Assistant:
+    - Display brightness (current, day and night).
+    - Time and text display timeouts in seconds.

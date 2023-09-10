@@ -1,0 +1,266 @@
+esphome:
+  platform: ESP8266
+  board: esp01_1m
+  on_boot:
+    then:
+      - lambda: |-
+          auto brightness = id(cfg_brightness).make_call();
+
+          // Set display brightness at boot depending on the current time
+          id(tm_ds1302).read_time();
+          brightness.set_value(id(tm_ds1302).now().hour < 8
+            ? id(cfg_brightness_night).state
+            : id(cfg_brightness_day).state);
+          brightness.perform();
+
+external_components:
+  - # Uncomment original repo when this PR is merged:
+    # - https://github.com/trombik/esphome-component-ds1302/pull/3
+    # source: github://trombik/esphome-component-ds1302@main
+    source: github://trip5/esphome-ds1302@main
+    components:
+      - ds1302
+  - source: github://buzzer13/esphome-components@main
+    components:
+      - tm1650
+
+i2c:
+  - id: i2c_main
+    sda: 13
+    scl: 12
+    scan: true
+
+time:
+  - platform: ds1302
+    id: tm_ds1302
+    cs_pin: GPIO5
+    dio_pin: GPIO14
+    clk_pin: GPIO16
+    update_interval: never
+    on_time:
+      # Cron jobs to toggle display brightness at day and night
+      - cron: "0 0 0 * * *"
+        then:
+          - lambda: |-
+              auto call = id(cfg_brightness).make_call();
+              call.set_value(id(cfg_brightness_night).state);
+              call.perform();
+
+      - cron: "0 0 8 * * *"
+        then:
+          - lambda: |-
+              auto call = id(cfg_brightness).make_call();
+              call.set_value(id(cfg_brightness_day).state);
+              call.perform();
+
+  - platform: homeassistant
+    id: tm_hass
+    on_time_sync:
+      then:
+        - lambda: id(tm_ds1302).write_time();
+
+status_led:
+  pin:
+    number: GPIO2
+    inverted: true
+
+display:
+  - platform: tm1650
+    id: disp_tm1650
+    intensity: 1
+    length: 4
+    update_interval: 500ms
+    # Remapped due to the specific 303WIFILC01 wiring (described at the bottom)
+    segment_map: GBPEDCAF
+    lambda: |-
+      static int dot = 0;
+      static int seconds = 0;
+
+      // Text values definition
+      const int text_count = 2;
+      const float text_tmouts[text_count] = {
+        id(cfg_text_tmout).state,
+        id(cfg_text_tmout_2).state
+      };
+      const std::string text_values[text_count] = {
+        id(sens_text).state,
+        id(sens_text_2).state
+      };
+
+      // Timeout calculation
+      int time_end = id(cfg_time_tmout).state;
+
+      for (int i = 0; i < text_count; ++i) {
+        time_end += text_values[i].length() <= 0 ? text_tmouts[i] : 0;
+      }
+
+      int text_end = time_end;
+      int text_ends[text_count];
+
+      for (int i = 0; i < text_count; ++i) {
+        text_end += text_values[i].length() <= 0 ? 0 : text_tmouts[i];
+        text_ends[i] = text_end;
+      }
+
+      const int curr_sec = seconds % text_end;
+
+      // Render
+      if (curr_sec < time_end) {
+        it.strftime((dot & 1) ? "%H.%M" : "%H%M", id(tm_ds1302).now());
+
+      } else if (curr_sec < text_end) {
+        for (int i = 0; i < text_count; ++i) {
+          if (curr_sec < text_ends[i]) {
+            it.print(text_values[i].c_str());
+            break;
+          }
+        }
+      }
+
+      if (!(++dot & 1)) {
+        seconds++;
+      }
+
+binary_sensor:
+  # "Set" button
+  - platform: gpio
+    id: btn_set
+    pin:
+      number: GPIO0
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_click:
+      then:
+        - lambda: |-
+            auto brightness = id(cfg_brightness).make_call();
+
+            if (id(cfg_brightness).state) {
+              brightness.number_to_min();
+            } else {
+              brightness.number_to_max();
+            }
+
+            brightness.perform();
+
+  # "Up" button
+  - platform: gpio
+    id: btn_up
+    pin:
+      number: GPIO4
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_click:
+      then:
+        - lambda: |-
+            auto brightness = id(cfg_brightness).make_call();
+            brightness.number_increment(false);
+            brightness.perform();
+
+  # "Down" button
+  - platform: gpio
+    id: btn_down
+    pin:
+      number: GPIO15
+      mode:
+        input: true
+        pullup: true
+    on_click:
+      then:
+        - lambda: |-
+            auto brightness = id(cfg_brightness).make_call();
+            brightness.number_decrement(false);
+            brightness.perform();
+
+text_sensor:
+  # First HA text entity to display
+  - platform: homeassistant
+    name: "Text"
+    id: sens_text
+    entity_id: input_text.clock_text
+  # Second HA text entity to display
+  - platform: homeassistant
+    name: "Text 2"
+    id: sens_text_2
+    entity_id: input_text.clock_text_2
+  # Additional sensors can be added here (and to the render fn - update
+  # text_tmouts and text_values vars) if you want to display more text items
+
+number:
+  # Current display brightness
+  - platform: template
+    id: cfg_brightness
+    name: "Brightness"
+    optimistic: true
+    restore_value: false
+    initial_value: 1
+    min_value: 0
+    max_value: 8
+    step: 1
+    set_action:
+      - lambda: |-
+          id(disp_tm1650).set_intensity(x);
+  # Display brightness at daytime
+  - platform: template
+    id: cfg_brightness_day
+    name: "Day Brightness"
+    optimistic: true
+    restore_value: true
+    initial_value: 1
+    min_value: 0
+    max_value: 8
+    step: 1
+  # Display brightness at nighttime
+  - platform: template
+    id: cfg_brightness_night
+    name: "Night Brightness"
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    min_value: 0
+    max_value: 8
+    step: 1
+  # Timeout in seconds before display switches to the text items
+  - platform: template
+    id: cfg_time_tmout
+    name: "Time Display Timeout"
+    optimistic: true
+    restore_value: true
+    initial_value: 6
+    min_value: 0
+    max_value: 10
+    step: 1
+  # Timeout in seconds to display 1st text entity
+  - platform: template
+    id: cfg_text_tmout
+    name: "Text Display Timeout"
+    optimistic: true
+    restore_value: true
+    initial_value: 2
+    min_value: 0
+    max_value: 10
+    step: 1
+  # Timeout in seconds to display 2st text entity
+  - platform: template
+    id: cfg_text_tmout_2
+    name: "Text 2 Display Timeout"
+    optimistic: true
+    restore_value: true
+    initial_value: 2
+    min_value: 0
+    max_value: 10
+    step: 1
+
+# Segment mapping:
+#      Font          Clock
+# P 0b10000000 -> 0b00000001 G
+# A 0b01000000 -> 0b00100000 B
+# B 0b00100000 -> 0b10000000 P
+# C 0b00010000 -> 0b00000100 E
+# D 0b00001000 -> 0b00001000 D
+# E 0b00000100 -> 0b00010000 C
+# F 0b00000010 -> 0b01000000 A
+# G 0b00000001 -> 0b00000010 F

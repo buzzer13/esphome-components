@@ -7,12 +7,21 @@ esphome:
           id(tm_ds1302).read_time();
 
 external_components:
-  - source: github://trombik/esphome-component-ds1302@main
+  - # Uncomment original repo when this PR is merged:
+    # - https://github.com/trombik/esphome-component-ds1302/pull/3
+    # source: github://trombik/esphome-component-ds1302@main
+    source: github://trip5/esphome-ds1302@main
     components:
       - ds1302
   - source: github://buzzer13/esphome-components@main
     components:
       - tm1650
+
+i2c:
+  - id: i2c_main
+    sda: 13
+    scl: 12
+    scan: true
 
 time:
   - platform: ds1302
@@ -33,18 +42,13 @@ status_led:
     number: GPIO2
     inverted: true
 
-i2c:
-  - id: i2c_main
-    sda: 13
-    scl: 12
-    scan: true
-
 display:
   - platform: tm1650
     id: disp_tm1650
     intensity: 1
     length: 4
-    segment_map: GBPEDCAF # Remapped due to the specific 303WIFILC01 wiring
+    # Remapped due to the specific 303WIFILC01 wiring (described at the bottom)
+    segment_map: GBPEDCAF
     update_interval: 500ms
     lambda: |-
       static int dot = 0;
