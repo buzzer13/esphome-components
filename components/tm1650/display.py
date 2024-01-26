@@ -2,7 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome import pins
 from esphome.components import display, i2c
-from esphome.const import CONF_SCL, CONF_SDA, CONF_ID, CONF_LAMBDA, CONF_INTENSITY, CONF_MODE, CONF_POWER, CONF_LENGTH
+from esphome.const import __version__ as ESPHOME_VERSION, CONF_SCL, CONF_SDA, CONF_ID, CONF_LAMBDA, CONF_INTENSITY, CONF_MODE, CONF_POWER, CONF_LENGTH
 import re
 
 DEPENDENCIES = ["i2c"]
@@ -26,13 +26,18 @@ CONFIG_SCHEMA = display.BASIC_DISPLAY_SCHEMA.extend({
     ),
     cv.Optional(CONF_POWER, default=True): cv.boolean,
     cv.Optional(CONF_LENGTH, default=4): cv.All(cv.uint8_t, cv.Range(min=1, max=16)),
-}).extend(cv.polling_component_schema("1s")).extend(i2c.i2c_device_schema(0x24))
+}).extend(i2c.i2c_device_schema(0x24))
+
+if cv.Version.parse(ESPHOME_VERSION) < cv.Version.parse("2023.12.0"):
+    CONFIG_SCHEMA = CONFIG_SCHEMA.extend(cv.polling_component_schema("1s"))
 
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
 
-    await cg.register_component(var, config)
+    if cv.Version.parse(ESPHOME_VERSION) < cv.Version.parse("2023.12.0"):
+        await cg.register_component(var, config)
+
     await display.register_display(var, config)
     await i2c.register_i2c_device(var, config)
 

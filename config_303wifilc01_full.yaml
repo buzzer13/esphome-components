@@ -14,10 +14,8 @@ esphome:
           brightness.perform();
 
 external_components:
-  - # Uncomment original repo when this PR is merged:
-    # - https://github.com/trombik/esphome-component-ds1302/pull/3
-    # source: github://trombik/esphome-component-ds1302@main
-    source: github://trip5/esphome-ds1302@main
+  - source: github://trombik/esphome-component-ds1302@main
+    # source: github://trip5/esphome-ds1302@main
     components:
       - ds1302
   - source: github://buzzer13/esphome-components@main
